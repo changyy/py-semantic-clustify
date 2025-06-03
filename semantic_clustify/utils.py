@@ -262,6 +262,43 @@ def flatten_clusters(clusters: List[List[Dict[str, Any]]]) -> List[Dict[str, Any
     return flattened
 
 
+def enriched_flatten_clusters(clusters: List[List[Dict[str, Any]]], include_cluster_stats: bool = True) -> List[Dict[str, Any]]:
+    """
+    Flatten clustered data to a single list with cluster_id field and enriched metadata.
+
+    Args:
+        clusters: List of clusters
+        include_cluster_stats: Whether to include cluster statistics
+
+    Returns:
+        Flattened list of documents with cluster_id and enriched metadata
+    """
+    flattened = []
+    
+    # Calculate cluster statistics if needed
+    cluster_stats = {}
+    if include_cluster_stats:
+        for cluster_id, cluster in enumerate(clusters):
+            cluster_stats[cluster_id] = {
+                "cluster_size": len(cluster),
+                "cluster_density": len(cluster) / len(clusters) if clusters else 0
+            }
+    
+    for cluster_id, cluster in enumerate(clusters):
+        for doc in cluster:
+            doc_copy = doc.copy()
+            doc_copy["cluster_id"] = cluster_id
+            
+            # Add enriched metadata
+            if include_cluster_stats:
+                doc_copy["cluster_size"] = cluster_stats[cluster_id]["cluster_size"]
+                doc_copy["cluster_density"] = round(cluster_stats[cluster_id]["cluster_density"], 4)
+            
+            flattened.append(doc_copy)
+
+    return flattened
+
+
 def read_from_stdin() -> List[Dict[str, Any]]:
     """
     Read JSONL data from stdin.
@@ -422,3 +459,59 @@ def validate_vectors_dimension(vectors: np.ndarray, min_dim: int = 2) -> bool:
         return False
 
     return True
+
+
+def save_streaming_grouped_jsonl(clusters: List[List[Dict[str, Any]]], filepath: str, method: str = "unknown") -> None:
+    """
+    Save clustered data in streaming grouped format (JSONL with cluster metadata).
+    
+    This format is optimized for streaming processing while preserving cluster structure.
+
+    Args:
+        clusters: List of clusters, each containing documents
+        filepath: Output file path
+        method: Clustering method used
+    """
+    try:
+        import time
+        from datetime import datetime
+        
+        with open(filepath, "w", encoding="utf-8") as f:
+            # Write metadata header
+            metadata = {
+                "type": "clustering_metadata",
+                "method": method,
+                "total_clusters": len(clusters),
+                "total_documents": sum(len(cluster) for cluster in clusters),
+                "timestamp": datetime.now().isoformat(),
+                "format_version": "1.0"
+            }
+            json.dump(metadata, f, ensure_ascii=False)
+            f.write("\n")
+            
+            # Write each cluster as a separate line
+            for cluster_id, cluster in enumerate(clusters):
+                cluster_data = {
+                    "type": "cluster",
+                    "cluster_id": cluster_id,
+                    "cluster_size": len(cluster),
+                    "cluster_density": len(cluster) / len(clusters) if clusters else 0,
+                    "documents": cluster
+                }
+                json.dump(cluster_data, f, ensure_ascii=False)
+                f.write("\n")
+            
+            # Write summary footer
+            summary = {
+                "type": "clustering_summary",
+                "clusters_processed": len(clusters),
+                "documents_processed": sum(len(cluster) for cluster in clusters),
+                "average_cluster_size": sum(len(cluster) for cluster in clusters) / len(clusters) if clusters else 0
+            }
+            json.dump(summary, f, ensure_ascii=False)
+            f.write("\n")
+
+        logger.info(f"Saved {len(clusters)} clusters in streaming format to {filepath}")
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to save streaming grouped JSONL file {filepath}: {e}")

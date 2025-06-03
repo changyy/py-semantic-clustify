@@ -144,7 +144,7 @@ def test_cli_output_formats(temp_jsonl_file):
     """Test different output formats."""
     runner = CliRunner()
 
-    for output_format in ["grouped", "labeled"]:
+    for output_format in ["grouped", "labeled", "enriched-labeled", "streaming-grouped"]:
         with tempfile.TemporaryDirectory() as temp_dir:
             output_file = Path(temp_dir) / f"output_{output_format}.jsonl"
 
@@ -179,13 +179,44 @@ def test_cli_output_formats(temp_jsonl_file):
                 assert isinstance(data, list)
                 if data:  # If not empty
                     assert isinstance(data[0], list)
-            else:  # labeled
-                # Should be JSONL format
+            elif output_format == "labeled":
+                # Should be JSONL format with cluster_id
                 lines = content.split("\n")
                 for line in lines:
                     if line.strip():
                         item = json.loads(line)
                         assert "cluster_id" in item
+            elif output_format == "enriched-labeled":
+                # Should be JSONL format with cluster_id and additional stats
+                lines = content.split("\n")
+                for line in lines:
+                    if line.strip():
+                        item = json.loads(line)
+                        assert "cluster_id" in item
+                        assert "cluster_size" in item
+                        assert "cluster_density" in item
+            elif output_format == "streaming-grouped":
+                # Should be JSONL format with structured metadata
+                lines = content.split("\n")
+                found_metadata = False
+                found_cluster = False
+                found_summary = False
+                
+                for line in lines:
+                    if line.strip():
+                        item = json.loads(line)
+                        if item.get("type") == "clustering_metadata":
+                            found_metadata = True
+                            assert "method" in item
+                        elif item.get("type") == "cluster":
+                            found_cluster = True
+                            assert "cluster_id" in item
+                            assert "documents" in item
+                        elif item.get("type") == "clustering_summary":
+                            found_summary = True
+                
+                assert found_metadata, "streaming-grouped format should include metadata"
+                assert found_cluster, "streaming-grouped format should include cluster data"
 
 
 @pytest.mark.integration

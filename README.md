@@ -48,6 +48,8 @@ cat vectorized_data.jsonl | semantic-clustify \
 - **🎛️ Smart Defaults**: Default parameters optimized for common use cases
 - **🔧 Flexible Input**: Support file input, stdin, or explicit stdin markers
 - **📈 Cluster Quality Metrics**: Silhouette score, inertia, and cluster statistics
+- **🚰 Pipeline Optimization**: Enhanced output formats for streaming and pipeline integration
+- **📊 Context-Rich Outputs**: Enriched formats with cluster statistics for advanced filtering
 
 ## 📖 Table of Contents
 
@@ -151,7 +153,7 @@ semantic-clustify [OPTIONS]
 - `--n-clusters`: Number of clusters (default: "auto" for automatic detection)
 - `--min-cluster-size`: Minimum cluster size (default: 2)
 - `--max-clusters`: Maximum clusters for auto-detection (default: 20)
-- `--output-format`: Output format - "grouped" or "labeled" (default: "grouped")
+- `--output-format`: Output format - "grouped", "labeled", "enriched-labeled", or "streaming-grouped" (default: "grouped")
 - `--output`: Output file path (default: auto-generated)
 - `--quality-metrics`: Show clustering quality metrics
 
@@ -201,6 +203,7 @@ JSONL file with pre-computed vector embeddings:
   ]
 ]
 ```
+**Best for**: Small-scale experimentation and analysis
 
 #### Labeled Format
 ```json
@@ -208,6 +211,24 @@ JSONL file with pre-computed vector embeddings:
 {"title": "Deep Learning Overview", "content": "Neural networks explained", "embedding": [0.15, 0.25, 0.35, ...], "cluster_id": 0}
 {"title": "Data Science Tools", "content": "Python libraries for data", "embedding": [0.8, 0.1, 0.2, ...], "cluster_id": 1}
 ```
+**Best for**: Basic pipeline processing with maximum memory efficiency
+
+#### Enriched-Labeled Format
+```json
+{"title": "Machine Learning Basics", "content": "Introduction to ML", "embedding": [0.1, 0.2, 0.3, ...], "cluster_id": 0, "cluster_size": 150, "cluster_density": 0.85}
+{"title": "Deep Learning Overview", "content": "Neural networks explained", "embedding": [0.15, 0.25, 0.35, ...], "cluster_id": 0, "cluster_size": 150, "cluster_density": 0.85}
+{"title": "Data Science Tools", "content": "Python libraries for data", "embedding": [0.8, 0.1, 0.2, ...], "cluster_id": 1, "cluster_size": 75, "cluster_density": 0.72}
+```
+**Best for**: Context-rich pipelines where each document needs cluster statistics
+
+#### Streaming-Grouped Format
+```json
+{"type": "clustering_metadata", "method": "kmeans", "n_clusters": 2, "timestamp": "2024-01-15T10:30:00Z"}
+{"type": "cluster", "cluster_id": 0, "size": 150, "density": 0.85, "documents": [{"title": "ML Basics", ...}, {"title": "Deep Learning", ...}]}
+{"type": "cluster", "cluster_id": 1, "size": 75, "density": 0.72, "documents": [{"title": "Data Science Tools", ...}]}
+{"type": "clustering_summary", "total_clusters": 2, "total_documents": 225, "silhouette_score": 0.73}
+```
+**Best for**: Large-scale pipeline integration with structured metadata
 
 ## 🤖 Supported Algorithms
 
@@ -268,6 +289,28 @@ semantic-clustify \
   --method "hierarchical" \
   --n-clusters 8 \
   --output hierarchical_clusters.jsonl
+```
+
+### Example 3.1: Enhanced output formats for pipeline processing
+
+```bash
+# Enriched-labeled format with cluster statistics for filtering
+semantic-clustify \
+  --input documents.jsonl \
+  --embedding-field "embedding" \
+  --method "kmeans" \
+  --n-clusters auto \
+  --output-format "enriched-labeled" \
+  --output enriched_clusters.jsonl
+
+# Streaming-grouped format for large-scale pipeline integration
+semantic-clustify \
+  --input large_dataset.jsonl \
+  --embedding-field "embedding" \
+  --method "kmeans" \
+  --n-clusters auto \
+  --output-format "streaming-grouped" \
+  --output pipeline_clusters.jsonl
 ```
 
 ### Example 4: Large-scale clustering with Faiss optimization

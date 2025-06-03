@@ -16,7 +16,9 @@ from .utils import (
     load_jsonl,
     save_jsonl,
     save_grouped_jsonl,
+    save_streaming_grouped_jsonl,
     flatten_clusters,
+    enriched_flatten_clusters,
     read_from_stdin,
     generate_output_filename,
     setup_logging,
@@ -66,9 +68,9 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--output-format",
-    type=click.Choice(["grouped", "labeled"]),
+    type=click.Choice(["grouped", "labeled", "enriched-labeled", "streaming-grouped"]),
     default="grouped",
-    help="Output format: 'grouped' (list of lists) or 'labeled' (flat with cluster_id)",
+    help="Output format: 'grouped' (JSON list), 'labeled' (JSONL with cluster_id), 'enriched-labeled' (with stats), or 'streaming-grouped' (pipeline-optimized JSONL)",
 )
 @click.option(
     "--output",
@@ -252,9 +254,14 @@ def main(
         # Save results
         if output_format == "grouped":
             save_grouped_jsonl(clusters, output)
-        else:  # labeled
+        elif output_format == "labeled":
             flattened = flatten_clusters(clusters)
             save_jsonl(flattened, output)
+        elif output_format == "enriched-labeled":
+            enriched_flattened = enriched_flatten_clusters(clusters, include_cluster_stats=True)
+            save_jsonl(enriched_flattened, output)
+        else:  # streaming-grouped
+            save_streaming_grouped_jsonl(clusters, output, method=method)
 
         print(f"\n✅ Clustering completed successfully!")
         print(f"   Output saved to: {output}")

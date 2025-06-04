@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-串接格式演示腳本
-展示不同輸出格式的特點和串接機制的優勢
+Streaming Format Demo Script
+Demonstrates the characteristics of different output formats and the advantages of streaming mechanisms
 """
 
 import json
@@ -12,34 +12,34 @@ from typing import Dict, List, Any
 
 
 def create_demo_data() -> str:
-    """創建演示數據"""
+    """Create demo data"""
     demo_data = []
     
-    # 機器學習相關文檔
+    # Machine learning related documents
     ml_docs = [
-        {"title": "機器學習基礎", "content": "介紹機器學習概念", "category": "ML", "embedding": [0.1, 0.2, 0.3, 0.4, 0.5]},
-        {"title": "深度學習入門", "content": "神經網絡基礎", "category": "ML", "embedding": [0.12, 0.22, 0.32, 0.42, 0.52]},
-        {"title": "監督學習方法", "content": "分類和回歸算法", "category": "ML", "embedding": [0.08, 0.18, 0.28, 0.38, 0.48]},
+        {"title": "Machine Learning Basics", "content": "Introduction to machine learning concepts", "category": "ML", "embedding": [0.1, 0.2, 0.3, 0.4, 0.5]},
+        {"title": "Deep Learning Introduction", "content": "Neural network fundamentals", "category": "ML", "embedding": [0.12, 0.22, 0.32, 0.42, 0.52]},
+        {"title": "Supervised Learning Methods", "content": "Classification and regression algorithms", "category": "ML", "embedding": [0.08, 0.18, 0.28, 0.38, 0.48]},
     ]
     
-    # 數據科學相關文檔
+    # Data science related documents
     ds_docs = [
-        {"title": "數據分析技術", "content": "統計分析方法", "category": "DS", "embedding": [0.6, 0.1, 0.2, 0.3, 0.4]},
-        {"title": "數據可視化", "content": "圖表和儀表板", "category": "DS", "embedding": [0.62, 0.12, 0.22, 0.32, 0.42]},
-        {"title": "大數據處理", "content": "分布式計算", "category": "DS", "embedding": [0.58, 0.08, 0.18, 0.28, 0.38]},
+        {"title": "Data Analysis Techniques", "content": "Statistical analysis methods", "category": "DS", "embedding": [0.6, 0.1, 0.2, 0.3, 0.4]},
+        {"title": "Data Visualization", "content": "Charts and dashboards", "category": "DS", "embedding": [0.62, 0.12, 0.22, 0.32, 0.42]},
+        {"title": "Big Data Processing", "content": "Distributed computing", "category": "DS", "embedding": [0.58, 0.08, 0.18, 0.28, 0.38]},
     ]
     
-    # 程式設計相關文檔  
+    # Programming related documents  
     prog_docs = [
-        {"title": "Python 程式設計", "content": "Python 語法基礎", "category": "Programming", "embedding": [0.9, 0.1, 0.05, 0.02, 0.03]},
-        {"title": "JavaScript 開發", "content": "前端開發技術", "category": "Programming", "embedding": [0.92, 0.12, 0.07, 0.04, 0.05]},
+        {"title": "Python Programming", "content": "Python syntax fundamentals", "category": "Programming", "embedding": [0.9, 0.1, 0.05, 0.02, 0.03]},
+        {"title": "JavaScript Development", "content": "Frontend development technologies", "category": "Programming", "embedding": [0.92, 0.12, 0.07, 0.04, 0.05]},
     ]
     
     demo_data.extend(ml_docs)
     demo_data.extend(ds_docs) 
     demo_data.extend(prog_docs)
     
-    # 保存到臨時文件
+    # Save to temporary file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
         for doc in demo_data:
             json.dump(doc, f, ensure_ascii=False)
@@ -48,7 +48,7 @@ def create_demo_data() -> str:
 
 
 def run_clustering(input_file: str, output_format: str) -> str:
-    """執行聚類並返回輸出文件路径"""
+    """Execute clustering and return output file path"""
     output_file = f"demo_output_{output_format.replace('-', '_')}.jsonl"
     
     cmd = [
@@ -61,21 +61,21 @@ def run_clustering(input_file: str, output_format: str) -> str:
         "--output", output_file
     ]
     
-    print(f"🔄 執行命令: {' '.join(cmd)}")
+    print(f"🔄 Executing command: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     if result.returncode != 0:
-        print(f"❌ 錯誤: {result.stderr}")
+        print(f"❌ Error: {result.stderr}")
         return None
         
-    print(f"✅ 成功生成: {output_file}")
+    print(f"✅ Successfully generated: {output_file}")
     return output_file
 
 
 def analyze_format(file_path: str, format_name: str) -> Dict[str, Any]:
-    """分析輸出格式特性"""
+    """Analyze output format characteristics"""
     if not Path(file_path).exists():
-        return {"error": "文件不存在"}
+        return {"error": "File does not exist"}
         
     file_size = Path(file_path).stat().st_size
     
@@ -90,7 +90,7 @@ def analyze_format(file_path: str, format_name: str) -> Dict[str, Any]:
         "memory_efficient": format_name != "grouped"
     }
     
-    # 格式特定分析
+    # Format-specific analysis
     if format_name == "grouped":
         try:
             data = json.loads(content)
@@ -105,7 +105,7 @@ def analyze_format(file_path: str, format_name: str) -> Dict[str, Any]:
         analysis["structure"] = "JSONL documents with cluster_id"
         
         if format_name == "enriched-labeled":
-            # 檢查是否有附加元數據
+            # Check if additional metadata exists
             try:
                 first_doc = json.loads(lines[0])
                 analysis["has_cluster_stats"] = "cluster_size" in first_doc
@@ -117,7 +117,7 @@ def analyze_format(file_path: str, format_name: str) -> Dict[str, Any]:
         analysis["total_lines"] = len(lines)
         analysis["structure"] = "JSONL with metadata, clusters, and summary"
         
-        # 分析各種行類型
+        # Analyze different line types
         line_types = {}
         for line in lines:
             try:
@@ -132,17 +132,17 @@ def analyze_format(file_path: str, format_name: str) -> Dict[str, Any]:
 
 
 def demonstrate_streaming_processing(file_path: str, format_name: str):
-    """演示串流處理能力"""
-    print(f"\n🔄 演示 {format_name} 格式的串流處理:")
+    """Demonstrate streaming processing capabilities"""
+    print(f"\n🔄 Demonstrating {format_name} format streaming processing:")
     
     if format_name == "grouped":
-        print("   ❌ 需要全部加載到記憶體中才能處理")
+        print("   ❌ Must be fully loaded into memory for processing")
         with open(file_path, 'r') as f:
             data = json.load(f)
-            print(f"   📊 加載了 {len(data)} 個群組到記憶體")
+            print(f"   📊 Loaded {len(data)} groups into memory")
     
     elif format_name == "labeled":
-        print("   ✅ 可以逐行處理，記憶體效率高")
+        print("   ✅ Can process line by line, memory efficient")
         line_count = 0
         cluster_counts = {}
         
@@ -154,23 +154,23 @@ def demonstrate_streaming_processing(file_path: str, format_name: str):
                     cluster_counts[cluster_id] = cluster_counts.get(cluster_id, 0) + 1
                     line_count += 1
         
-        print(f"   📊 串流處理了 {line_count} 行，發現 {len(cluster_counts)} 個群組")
+        print(f"   📊 Stream processed {line_count} lines, found {len(cluster_counts)} groups")
     
     elif format_name == "enriched-labeled":
-        print("   ✅ 可以逐行處理，且每行包含完整上下文")
+        print("   ✅ Can process line by line, each line contains complete context")
         large_clusters = []
         
         with open(file_path, 'r') as f:
             for line in f:
                 if line.strip():
                     doc = json.loads(line)
-                    if doc.get("cluster_size", 0) >= 3:  # 只處理大群組
+                    if doc.get("cluster_size", 0) >= 3:  # Only process large groups
                         large_clusters.append(doc)
         
-        print(f"   📊 串流篩選出 {len(large_clusters)} 個屬於大群組的文檔")
+        print(f"   📊 Stream filtered {len(large_clusters)} documents belonging to large groups")
     
     elif format_name == "streaming-grouped":
-        print("   ✅ 結構化串流處理，適合管道集成")
+        print("   ✅ Structured streaming processing, suitable for pipeline integration")
         metadata = None
         cluster_count = 0
         
@@ -183,25 +183,25 @@ def demonstrate_streaming_processing(file_path: str, format_name: str):
                     elif data.get("type") == "cluster":
                         cluster_count += 1
         
-        print(f"   📊 元數據: {metadata.get('method')} 方法，{cluster_count} 個群組")
+        print(f"   📊 Metadata: {metadata.get('method')} method, {cluster_count} groups")
 
 
 def main():
-    """主函數"""
-    print("🎯 語義聚類串接格式演示")
+    """Main function"""
+    print("🎯 Semantic Clustering Streaming Format Demo")
     print("=" * 50)
     
-    # 創建演示數據
-    print("\n📝 創建演示數據...")
+    # Create demo data
+    print("\n📝 Creating demo data...")
     input_file = create_demo_data()
-    print(f"✅ 創建了包含 8 個文檔的測試數據: {input_file}")
+    print(f"✅ Created test data with 8 documents: {input_file}")
     
-    # 測試所有格式
+    # Test all formats
     formats = ["grouped", "labeled", "enriched-labeled", "streaming-grouped"]
     results = {}
     
     for format_name in formats:
-        print(f"\n🧪 測試 {format_name} 格式:")
+        print(f"\n🧪 Testing {format_name} format:")
         output_file = run_clustering(input_file, format_name)
         
         if output_file:
@@ -211,27 +211,27 @@ def main():
                 "analysis": analysis
             }
             
-            # 顯示分析結果
-            print(f"   📊 文件大小: {analysis['file_size']} bytes")
-            print(f"   📄 行數: {analysis['line_count']}")
-            print(f"   🚰 串流友善: {'✅' if analysis['streaming_friendly'] else '❌'}")
-            print(f"   💾 記憶體效率: {'✅' if analysis['memory_efficient'] else '❌'}")
+            # Display analysis results
+            print(f"   📊 File size: {analysis['file_size']} bytes")
+            print(f"   📄 Line count: {analysis['line_count']}")
+            print(f"   🚰 Streaming friendly: {'✅' if analysis['streaming_friendly'] else '❌'}")
+            print(f"   💾 Memory efficient: {'✅' if analysis['memory_efficient'] else '❌'}")
             
-            # 演示串流處理
+            # Demonstrate streaming processing
             demonstrate_streaming_processing(output_file, format_name)
     
-    # 總結比較
-    print(f"\n📊 格式比較總結:")
+    # Summary comparison
+    print(f"\n📊 Format comparison summary:")
     print("=" * 50)
     
-    print(f"{'格式':<20} {'文件大小':<10} {'串流友善':<8} {'適用場景'}")
+    print(f"{'Format':<20} {'File Size':<10} {'Streaming':<8} {'Use Case'}")
     print("-" * 60)
     
     scenarios = {
-        "grouped": "小規模實驗分析",
-        "labeled": "基礎管道處理", 
-        "enriched-labeled": "上下文豐富的管道",
-        "streaming-grouped": "結構化大規模管道"
+        "grouped": "Small-scale experimental analysis",
+        "labeled": "Basic pipeline processing", 
+        "enriched-labeled": "Context-rich pipeline",
+        "streaming-grouped": "Structured large-scale pipeline"
     }
     
     for format_name in formats:
@@ -239,21 +239,21 @@ def main():
             analysis = results[format_name]["analysis"]
             size = analysis["file_size"]
             streaming = "✅" if analysis["streaming_friendly"] else "❌"
-            scenario = scenarios.get(format_name, "未知")
+            scenario = scenarios.get(format_name, "Unknown")
             print(f"{format_name:<20} {size:<10} {streaming:<8} {scenario}")
     
-    print(f"\n🎯 建議使用策略:")
-    print("• 🧪 實驗階段: 使用 grouped 格式，便於分析群組結構")
-    print("• 🔄 生產管道: 使用 enriched-labeled，平衡效率和信息完整性")
-    print("• 🚀 大規模處理: 使用 streaming-grouped，最佳化管道集成")
-    print("• 🔗 簡單串接: 使用 labeled，最大記憶體效率")
+    print(f"\n🎯 Recommended usage strategies:")
+    print("• 🧪 Experimental stage: Use grouped format for analyzing cluster structure")
+    print("• 🔄 Production pipeline: Use enriched-labeled, balancing efficiency and information completeness")
+    print("• 🚀 Large-scale processing: Use streaming-grouped for optimal pipeline integration")
+    print("• 🔗 Simple streaming: Use labeled for maximum memory efficiency")
     
-    # 清理臨時文件
+    # Clean up temporary files
     Path(input_file).unlink(missing_ok=True)
     for result in results.values():
         Path(result["file"]).unlink(missing_ok=True)
     
-    print(f"\n✨ 演示完成！")
+    print(f"\n✨ Demo completed!")
 
 
 if __name__ == "__main__":

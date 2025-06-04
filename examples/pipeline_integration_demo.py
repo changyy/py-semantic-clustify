@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-管道整合演示腳本
-展示如何在實際資料管道中使用不同的輸出格式
+Pipeline Integration Demo Script
+Demonstrates how to use different output formats in real data pipelines
 """
 
 import json
@@ -12,10 +12,10 @@ from typing import Dict, List, Any
 
 
 def create_large_dataset() -> str:
-    """創建大型測試數據集"""
+    """Create large test dataset"""
     documents = []
     
-    # 科技類文檔
+    # Technology documents
     tech_docs = [
         "Artificial intelligence and machine learning algorithms",
         "Deep neural networks and backpropagation",
@@ -29,7 +29,7 @@ def create_large_dataset() -> str:
         "Software engineering best practices"
     ]
     
-    # 商業類文檔
+    # Business documents
     business_docs = [
         "Financial markets and investment strategies",
         "Marketing automation and customer segmentation",
@@ -43,7 +43,7 @@ def create_large_dataset() -> str:
         "Corporate governance principles"
     ]
     
-    # 科學類文檔
+    # Science documents
     science_docs = [
         "Climate change and environmental science",
         "Biotechnology and genetic engineering",
@@ -57,15 +57,15 @@ def create_large_dataset() -> str:
         "Environmental conservation strategies"
     ]
     
-    # 為每個類別生成帶有相似向量的文檔
+    # Generate documents with similar vectors for each category
     import random
     import numpy as np
     
     def generate_embedding(base_vector: List[float], noise_level: float = 0.1) -> List[float]:
-        """生成具有噪聲的相似向量"""
+        """Generate similar vector with noise"""
         return [val + random.uniform(-noise_level, noise_level) for val in base_vector]
     
-    # 科技類別基向量
+    # Technology category base vector
     tech_base = [0.8, 0.7, 0.6, 0.2, 0.1]
     for i, doc in enumerate(tech_docs):
         documents.append({
@@ -75,7 +75,7 @@ def create_large_dataset() -> str:
             "embedding": generate_embedding(tech_base)
         })
     
-    # 商業類別基向量
+    # Business category base vector
     business_base = [0.2, 0.3, 0.8, 0.7, 0.6]
     for i, doc in enumerate(business_docs):
         documents.append({
@@ -85,7 +85,7 @@ def create_large_dataset() -> str:
             "embedding": generate_embedding(business_base)
         })
     
-    # 科學類別基向量
+    # Science category base vector
     science_base = [0.1, 0.8, 0.2, 0.9, 0.7]
     for i, doc in enumerate(science_docs):
         documents.append({
@@ -95,7 +95,7 @@ def create_large_dataset() -> str:
             "embedding": generate_embedding(science_base)
         })
     
-    # 保存到臨時文件
+    # Save to temporary file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
         for doc in documents:
             json.dump(doc, f, ensure_ascii=False)
@@ -104,8 +104,8 @@ def create_large_dataset() -> str:
 
 
 def pipeline_step_1_basic_clustering(input_file: str) -> str:
-    """管道步驟 1: 基礎聚類"""
-    print("🔄 管道步驟 1: 執行基礎聚類...")
+    """Pipeline Step 1: Basic clustering"""
+    print("🔄 Pipeline Step 1: Executing basic clustering...")
     
     output_file = "pipeline_step1_clusters.jsonl"
     cmd = [
@@ -120,16 +120,16 @@ def pipeline_step_1_basic_clustering(input_file: str) -> str:
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"❌ 步驟 1 失敗: {result.stderr}")
+        print(f"❌ Step 1 failed: {result.stderr}")
         return None
     
-    print(f"✅ 步驟 1 完成: {output_file}")
+    print(f"✅ Step 1 completed: {output_file}")
     return output_file
 
 
 def pipeline_step_2_filter_large_clusters(input_file: str) -> str:
-    """管道步驟 2: 篩選大型聚類"""
-    print("🔍 管道步驟 2: 篩選大型聚類（cluster_size >= 8）...")
+    """Pipeline Step 2: Filter large clusters"""
+    print("🔍 Pipeline Step 2: Filtering large clusters (cluster_size >= 8)...")
     
     large_cluster_docs = []
     cluster_stats = {}
@@ -141,7 +141,7 @@ def pipeline_step_2_filter_large_clusters(input_file: str) -> str:
                 cluster_size = doc.get("cluster_size", 0)
                 cluster_id = doc.get("cluster_id", -1)
                 
-                # 統計聚類信息
+                # Collect cluster statistics
                 if cluster_id not in cluster_stats:
                     cluster_stats[cluster_id] = {
                         "size": cluster_size,
@@ -152,29 +152,29 @@ def pipeline_step_2_filter_large_clusters(input_file: str) -> str:
                 cluster_stats[cluster_id]["documents"] += 1
                 cluster_stats[cluster_id]["categories"].add(doc.get("category", "Unknown"))
                 
-                # 篩選大型聚類
+                # Filter large clusters
                 if cluster_size >= 8:
                     large_cluster_docs.append(doc)
     
-    # 保存篩選結果
+    # Save filtered results
     output_file = "pipeline_step2_large_clusters.jsonl"
     with open(output_file, 'w') as f:
         for doc in large_cluster_docs:
             json.dump(doc, f, ensure_ascii=False)
             f.write('\n')
     
-    print(f"✅ 步驟 2 完成: 從 {len(cluster_stats)} 個聚類中篩選出 {len(large_cluster_docs)} 個大型聚類文檔")
-    print(f"   聚類統計:")
+    print(f"✅ Step 2 completed: Filtered {len(large_cluster_docs)} large cluster documents from {len(cluster_stats)} clusters")
+    print(f"   Cluster statistics:")
     for cluster_id, stats in cluster_stats.items():
         categories_str = ", ".join(stats["categories"])
-        print(f"     聚類 {cluster_id}: {stats['documents']} 個文檔, 類別: {categories_str}")
+        print(f"     Cluster {cluster_id}: {stats['documents']} documents, categories: {categories_str}")
     
     return output_file
 
 
 def pipeline_step_3_refined_clustering(input_file: str) -> str:
-    """管道步驟 3: 對大型聚類進行細化"""
-    print("🔬 管道步驟 3: 對大型聚類進行細化聚類...")
+    """Pipeline Step 3: Refine large clusters"""
+    print("🔬 Pipeline Step 3: Performing refined clustering on large clusters...")
     
     output_file = "pipeline_step3_refined_clusters.jsonl"
     cmd = [
@@ -189,16 +189,16 @@ def pipeline_step_3_refined_clustering(input_file: str) -> str:
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"❌ 步驟 3 失敗: {result.stderr}")
+        print(f"❌ Step 3 failed: {result.stderr}")
         return None
     
-    print(f"✅ 步驟 3 完成: {output_file}")
+    print(f"✅ Step 3 completed: {output_file}")
     return output_file
 
 
 def analyze_pipeline_results(streaming_file: str):
-    """分析管道結果"""
-    print("📊 分析管道結果...")
+    """Analyze pipeline results"""
+    print("📊 Analyzing pipeline results...")
     
     metadata = None
     clusters = []
@@ -217,19 +217,19 @@ def analyze_pipeline_results(streaming_file: str):
                 elif data_type == "clustering_summary":
                     summary = data
     
-    print(f"\n📈 最終結果:")
-    print(f"   聚類方法: {metadata.get('method', 'N/A')}")
-    print(f"   聚類數量: {len(clusters)}")
-    print(f"   總文檔數: {summary.get('total_documents', 'N/A')}")
-    print(f"   輪廓係數: {summary.get('silhouette_score', 0):.3f}" if summary.get('silhouette_score') else "   輪廓係數: N/A")
+    print(f"\n📈 Final results:")
+    print(f"   Clustering method: {metadata.get('method', 'N/A')}")
+    print(f"   Number of clusters: {len(clusters)}")
+    print(f"   Total documents: {summary.get('total_documents', 'N/A')}")
+    print(f"   Silhouette score: {summary.get('silhouette_score', 0):.3f}" if summary.get('silhouette_score') else "   Silhouette score: N/A")
     
-    print(f"\n📋 各聚類詳情:")
+    print(f"\n📋 Cluster details:")
     for cluster in clusters:
         cluster_id = cluster.get("cluster_id", -1)
         size = cluster.get("size", 0)
         density = cluster.get("density", 0)
         
-        # 分析聚類中的類別分布
+        # Analyze category distribution in clusters
         categories = {}
         documents = cluster.get("documents", [])
         for doc in documents:
@@ -237,15 +237,15 @@ def analyze_pipeline_results(streaming_file: str):
             categories[cat] = categories.get(cat, 0) + 1
         
         category_str = ", ".join([f"{cat}({count})" for cat, count in categories.items()])
-        print(f"   聚類 {cluster_id}: {size} 個文檔, 密度 {density:.3f}, 類別分布: {category_str}")
+        print(f"   Cluster {cluster_id}: {size} documents, density {density:.3f}, category distribution: {category_str}")
 
 
 def demonstrate_streaming_processing(streaming_file: str):
-    """演示串流處理能力"""
-    print("\n🚰 演示串流處理能力...")
+    """Demonstrate streaming processing capabilities"""
+    print("\n🚰 Demonstrating streaming processing capabilities...")
     
-    # 模擬串流處理：逐行讀取並處理
-    print("   🔄 模擬實時處理 streaming-grouped 格式...")
+    # Simulate streaming processing: read and process line by line
+    print("   🔄 Simulating real-time processing of streaming-grouped format...")
     
     processed_clusters = 0
     processed_documents = 0
@@ -257,71 +257,71 @@ def demonstrate_streaming_processing(streaming_file: str):
                 data_type = data.get("type")
                 
                 if data_type == "clustering_metadata":
-                    print(f"   📋 行 {line_num}: 接收到元數據 - 方法: {data.get('method')}")
+                    print(f"   📋 Line {line_num}: Received metadata - method: {data.get('method')}")
                 elif data_type == "cluster":
                     cluster_id = data.get("cluster_id", -1)
                     size = data.get("size", 0)
                     processed_clusters += 1
                     processed_documents += size
-                    print(f"   📦 行 {line_num}: 處理聚類 {cluster_id} - {size} 個文檔")
+                    print(f"   📦 Line {line_num}: Processed cluster {cluster_id} - {size} documents")
                 elif data_type == "clustering_summary":
-                    print(f"   📊 行 {line_num}: 接收到摘要 - 總計: {data.get('total_documents')} 個文檔")
+                    print(f"   📊 Line {line_num}: Received summary - total: {data.get('total_documents')} documents")
     
-    print(f"   ✅ 串流處理完成: 處理了 {processed_clusters} 個聚類，{processed_documents} 個文檔")
+    print(f"   ✅ Streaming processing completed: Processed {processed_clusters} clusters, {processed_documents} documents")
 
 
 def main():
-    """主函數 - 演示完整管道"""
-    print("🎯 資料管道整合演示")
+    """Main function - demonstrate complete pipeline"""
+    print("🎯 Data Pipeline Integration Demo")
     print("=" * 50)
     
     try:
-        # 創建測試數據
-        print("📝 創建大型測試數據集...")
+        # Create test data
+        print("📝 Creating large test dataset...")
         input_file = create_large_dataset()
-        print(f"✅ 創建了包含 30 個文檔的測試數據: {input_file}")
+        print(f"✅ Created test data with 30 documents: {input_file}")
         
-        # 管道步驟 1: 基礎聚類
+        # Pipeline Step 1: Basic clustering
         step1_output = pipeline_step_1_basic_clustering(input_file)
         if not step1_output:
             return
         
-        # 管道步驟 2: 篩選大型聚類
+        # Pipeline Step 2: Filter large clusters
         step2_output = pipeline_step_2_filter_large_clusters(step1_output)
         if not step2_output:
             return
         
-        # 管道步驟 3: 細化聚類
+        # Pipeline Step 3: Refine clustering
         step3_output = pipeline_step_3_refined_clustering(step2_output)
         if not step3_output:
             return
         
-        # 分析最終結果
+        # Analyze final results
         analyze_pipeline_results(step3_output)
         
-        # 演示串流處理
+        # Demonstrate streaming processing
         demonstrate_streaming_processing(step3_output)
         
-        print(f"\n🎯 管道整合優勢:")
-        print("• 🔄 enriched-labeled 格式支援基於統計的篩選")
-        print("• 🚰 streaming-grouped 格式支援結構化串流處理")
-        print("• 📊 豐富的元數據便於管道監控和調試")
-        print("• 💾 記憶體效率高，適合大規模數據處理")
-        print("• 🔗 易於與其他工具和框架整合")
+        print(f"\n🎯 Pipeline integration advantages:")
+        print("• 🔄 enriched-labeled format supports statistics-based filtering")
+        print("• 🚰 streaming-grouped format supports structured streaming processing")
+        print("• 📊 Rich metadata facilitates pipeline monitoring and debugging")
+        print("• 💾 High memory efficiency, suitable for large-scale data processing")
+        print("• 🔗 Easy integration with other tools and frameworks")
         
     except KeyboardInterrupt:
-        print("\n⚠️ 演示被用戶中斷")
+        print("\n⚠️ Demo interrupted by user")
     except Exception as e:
-        print(f"\n❌ 演示過程中發生錯誤: {e}")
+        print(f"\n❌ Error occurred during demo: {e}")
     finally:
-        # 清理臨時文件
+        # Clean up temporary files
         for filename in [input_file, "pipeline_step1_clusters.jsonl", 
                         "pipeline_step2_large_clusters.jsonl", 
                         "pipeline_step3_refined_clusters.jsonl"]:
             if filename and Path(filename).exists():
                 Path(filename).unlink(missing_ok=True)
         
-        print(f"\n✨ 管道演示完成！")
+        print(f"\n✨ Pipeline demo completed!")
 
 
 if __name__ == "__main__":

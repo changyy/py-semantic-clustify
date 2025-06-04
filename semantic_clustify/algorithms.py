@@ -5,7 +5,7 @@ This module provides implementations of different clustering algorithms
 optimized for semantic text clustering with vector embeddings.
 """
 
-from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING, List, Tuple
 import numpy as np
 import logging
 from abc import ABC, abstractmethod
@@ -358,3 +358,234 @@ class GMMClusterer(BaseClusterer):
                 }
             )
         return params
+
+
+class HybridDBSCANKMeansClusterer(BaseClusterer):
+    """
+    Hybrid DBSCAN + K-Means Clustering Algorithm
+    
+    Stage 1: Use DBSCAN to discover natural clusters and outliers
+    Stage 2: Use K-Means to reorganize to target cluster count
+    
+    Use case: News event clustering - first naturally discover major events, 
+    then reorganize minor events to target count
+    """
+    
+    def __init__(
+        self,
+        target_clusters: Union[int, str] = 30,
+        major_event_threshold: int = 10,
+        dbscan_eps: Optional[float] = None,
+        dbscan_min_samples: Optional[int] = None,
+        kmeans_strategy: str = "remaining_slots",  # "remaining_slots" | "all_minor" | "adaptive"
+        **kwargs
+    ):
+        # Remove n_clusters from kwargs to avoid duplication
+        clean_kwargs = {k: v for k, v in kwargs.items() if k != 'n_clusters'}
+        super().__init__(n_clusters=target_clusters, **clean_kwargs)
+        self.target_clusters = target_clusters
+        self.major_event_threshold = major_event_threshold
+        self.dbscan_eps = dbscan_eps
+        self.dbscan_min_samples = dbscan_min_samples
+        self.kmeans_strategy = kmeans_strategy
+        
+        # Sub-clusterers
+        self.dbscan_clusterer = None
+        self.kmeans_clusterer = None
+        
+        # Result storage
+        self.dbscan_labels_ = None
+        self.final_cluster_mapping_ = None
+        self.stage_info_ = {}
+
+    def fit_predict(self, vectors: np.ndarray) -> np.ndarray:
+        """Execute hybrid clustering"""
+        
+        # Stage 1: DBSCAN event discovery
+        logger.info("Stage 1: DBSCAN event discovery...")
+        dbscan_labels = self._stage1_dbscan_discovery(vectors)
+        
+        # Stage 2: Analysis and classification  
+        logger.info("Stage 2: Analyzing cluster results...")
+        major_clusters, minor_vectors, minor_indices = self._stage2_analyze_clusters(
+            vectors, dbscan_labels
+        )
+        
+        # Stage 3: K-Means reorganization
+        logger.info("Stage 3: K-Means reorganization...")
+        final_labels = self._stage3_kmeans_reorganization(
+            vectors, dbscan_labels, major_clusters, minor_vectors, minor_indices
+        )
+        
+        return final_labels
+    
+    def _stage1_dbscan_discovery(self, vectors: np.ndarray) -> np.ndarray:
+        """Stage 1: DBSCAN discovery of natural clusters"""
+        
+        self.dbscan_clusterer = DBSCANClusterer(
+            eps=self.dbscan_eps,
+            min_samples=self.dbscan_min_samples or max(self.min_cluster_size, 3),
+            min_cluster_size=self.min_cluster_size,
+            **{k: v for k, v in self.kwargs.items() if k in ['metric']}
+        )
+        
+        dbscan_labels = self.dbscan_clusterer.fit_predict(vectors)
+        self.dbscan_labels_ = dbscan_labels
+        
+        # Statistics of DBSCAN results
+        unique_labels = np.unique(dbscan_labels)
+        n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+        n_noise = np.sum(dbscan_labels == -1)
+        
+        self.stage_info_['dbscan'] = {
+            'n_clusters': n_clusters,
+            'n_noise': n_noise,
+            'cluster_sizes': [np.sum(dbscan_labels == label) for label in unique_labels if label != -1]
+        }
+        
+        logger.info(f"DBSCAN discovered {n_clusters} clusters, {n_noise} noise points")
+        return dbscan_labels
+    
+    def _stage2_analyze_clusters(self, vectors: np.ndarray, dbscan_labels: np.ndarray) -> Tuple:
+        """Stage 2: Analyze clusters, distinguish major events from minor events"""
+        
+        unique_labels = np.unique(dbscan_labels)
+        major_clusters = []
+        minor_indices = []
+        
+        for label in unique_labels:
+            if label == -1:  # Skip noise
+                minor_indices.extend(np.where(dbscan_labels == label)[0])
+                continue
+                
+            cluster_mask = dbscan_labels == label
+            cluster_size = np.sum(cluster_mask)
+            
+            if cluster_size >= self.major_event_threshold:
+                # Major event, keep directly
+                major_clusters.append(label)
+                logger.info(f"Major event cluster {label}: {cluster_size} documents")
+            else:
+                # Minor event, add to re-clustering list
+                minor_indices.extend(np.where(cluster_mask)[0])
+        
+        minor_vectors = vectors[minor_indices] if minor_indices else np.array([])
+        
+        self.stage_info_['analysis'] = {
+            'major_clusters': len(major_clusters),
+            'minor_documents': len(minor_indices),
+            'major_cluster_labels': major_clusters
+        }
+        
+        logger.info(f"Found {len(major_clusters)} major events, {len(minor_indices)} documents need re-clustering")
+        return major_clusters, minor_vectors, minor_indices
+    
+    def _stage3_kmeans_reorganization(
+        self, 
+        vectors: np.ndarray, 
+        dbscan_labels: np.ndarray,
+        major_clusters: List[int],
+        minor_vectors: np.ndarray,
+        minor_indices: List[int]
+    ) -> np.ndarray:
+        """Stage 3: K-Means reorganization to target cluster count"""
+        
+        target_clusters = self._determine_target_clusters()
+        final_labels = np.full(len(vectors), -1, dtype=int)
+        current_cluster_id = 0
+        
+        # Process major events (directly assign cluster IDs)
+        for major_label in major_clusters:
+            major_mask = dbscan_labels == major_label
+            final_labels[major_mask] = current_cluster_id
+            current_cluster_id += 1
+        
+        # Process minor events and noise (using K-Means)
+        if len(minor_vectors) > 0:
+            remaining_clusters = target_clusters - len(major_clusters)
+            
+            if remaining_clusters > 0:
+                # Ensure not exceeding data point count
+                remaining_clusters = min(remaining_clusters, len(minor_vectors))
+                
+                if remaining_clusters > 1:
+                    self.kmeans_clusterer = KMeansClusterer(
+                        n_clusters=remaining_clusters,
+                        min_cluster_size=1,  # Allow small clusters
+                        random_state=self.random_state
+                    )
+                    
+                    kmeans_labels = self.kmeans_clusterer.fit_predict(minor_vectors)
+                    
+                    # Map K-Means results to final labels
+                    for i, minor_idx in enumerate(minor_indices):
+                        final_labels[minor_idx] = current_cluster_id + kmeans_labels[i]
+                else:
+                    # Only one cluster remaining, assign all to the same one
+                    for minor_idx in minor_indices:
+                        final_labels[minor_idx] = current_cluster_id
+            else:
+                # No remaining space, assign to the smallest major event cluster
+                if major_clusters:
+                    # Find the smallest major event cluster
+                    smallest_cluster = min(major_clusters, 
+                                         key=lambda x: np.sum(dbscan_labels == x))
+                    target_id = major_clusters.index(smallest_cluster)
+                    
+                    for minor_idx in minor_indices:
+                        final_labels[minor_idx] = target_id
+        
+        # Renumber to ensure continuity
+        final_labels = self._renumber_clusters(final_labels)
+        
+        self.stage_info_['kmeans'] = {
+            'target_clusters': target_clusters,
+            'final_clusters': len(np.unique(final_labels[final_labels >= 0]))
+        }
+        
+        return final_labels
+    
+    def _determine_target_clusters(self) -> int:
+        """Determine target cluster count"""
+        if isinstance(self.target_clusters, int):
+            return self.target_clusters
+        elif self.target_clusters == "auto":
+            # Can implement automatic detection logic
+            return min(30, len(self.stage_info_['dbscan']['cluster_sizes']) * 2)
+        else:
+            return 30  # Default value
+    
+    def _renumber_clusters(self, labels: np.ndarray) -> np.ndarray:
+        """Renumber cluster labels to ensure continuity"""
+        unique_labels = np.unique(labels[labels >= 0])
+        label_mapping = {old_label: new_label for new_label, old_label in enumerate(unique_labels)}
+        
+        new_labels = labels.copy()
+        for old_label, new_label in label_mapping.items():
+            new_labels[labels == old_label] = new_label
+        
+        return new_labels
+    
+    def get_params(self) -> Dict[str, Any]:
+        """Get algorithm parameters"""
+        params = {
+            "algorithm": "hybrid-dbscan-kmeans",
+            "target_clusters": self.target_clusters,
+            "major_event_threshold": self.major_event_threshold,
+            "dbscan_eps": self.dbscan_eps,
+            "dbscan_min_samples": self.dbscan_min_samples,
+            "kmeans_strategy": self.kmeans_strategy,
+            "stage_info": self.stage_info_
+        }
+        
+        # Add sub-clusterer parameters
+        if self.dbscan_clusterer:
+            params["dbscan_params"] = self.dbscan_clusterer.get_params()
+        if self.kmeans_clusterer:
+            params["kmeans_params"] = self.kmeans_clusterer.get_params()
+            
+        return params
+    
+    def get_stage_info(self) -> Dict[str, Any]:
+        """Get detailed information for each stage"""
+        return self.stage_info_.copy()

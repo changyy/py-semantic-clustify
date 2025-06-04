@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--method",
     "-m",
-    type=click.Choice(["kmeans", "dbscan", "hierarchical", "gmm"]),
+    type=click.Choice(["kmeans", "dbscan", "hierarchical", "gmm", "hybrid-dbscan-kmeans"]),
     required=True,
     help="Clustering algorithm to use",
 )
@@ -118,6 +118,37 @@ logger = logging.getLogger(__name__)
     default=42,
     help="Random state for reproducibility (default: 42)",
 )
+# Hybrid algorithm specific parameters
+@click.option(
+    "--target-clusters",
+    type=int,
+    default=30,
+    help="Target number of final clusters for hybrid method (default: 30)",
+)
+@click.option(
+    "--major-event-threshold",
+    type=int,
+    default=10,
+    help="Minimum cluster size to be considered a major event (default: 10)",
+)
+@click.option(
+    "--dbscan-eps",
+    type=float,
+    default=None,
+    help="DBSCAN epsilon parameter for hybrid method (auto-estimated if not provided)",
+)
+@click.option(
+    "--dbscan-min-samples",
+    type=int,
+    default=None,
+    help="DBSCAN min_samples parameter for hybrid method (defaults to min_cluster_size)",
+)
+@click.option(
+    "--kmeans-strategy",
+    type=click.Choice(["remaining_slots", "all_minor", "adaptive"]),
+    default="remaining_slots",
+    help="Strategy for K-Means reorganization in hybrid method (default: remaining_slots)",
+)
 def main(
     input: Optional[str],
     embedding_field: str,
@@ -134,6 +165,11 @@ def main(
     linkage: str,
     covariance_type: str,
     random_state: int,
+    target_clusters: int,
+    major_event_threshold: int,
+    dbscan_eps: Optional[float],
+    dbscan_min_samples: Optional[int],
+    kmeans_strategy: str,
 ) -> None:
     """
     Semantic clustering tool for text documents using vector embeddings.
@@ -215,6 +251,14 @@ def main(
             algo_kwargs["linkage"] = linkage  # type: ignore[assignment]
         elif method == "gmm":
             algo_kwargs["covariance_type"] = covariance_type  # type: ignore[assignment]
+        elif method == "hybrid-dbscan-kmeans":
+            algo_kwargs["target_clusters"] = target_clusters
+            algo_kwargs["major_event_threshold"] = major_event_threshold
+            if dbscan_eps is not None:
+                algo_kwargs["dbscan_eps"] = dbscan_eps
+            if dbscan_min_samples is not None:
+                algo_kwargs["dbscan_min_samples"] = dbscan_min_samples
+            algo_kwargs["kmeans_strategy"] = kmeans_strategy
 
         # Create clusterer
         clusterer = SemanticClusterer(

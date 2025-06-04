@@ -36,6 +36,11 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Test cache and temporary files
+test_cache/
+*.jsonl.tmp
+*_grouped_*.jsonl
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -205,6 +210,7 @@ demo_data.jsonl
 *_vectorized_*.jsonl
 workflow_demo_data.jsonl
 small_test_data.jsonl
+test_*.jsonl
 
 # Temporary clustering output files
 tmp*.jsonl

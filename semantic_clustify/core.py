@@ -15,6 +15,7 @@ from .algorithms import (
     DBSCANClusterer,
     HierarchicalClusterer,
     GMMClusterer,
+    HybridDBSCANKMeansClusterer,
 )
 from .utils import (
     extract_vectors,
@@ -52,6 +53,7 @@ class SemanticClusterer:
         "dbscan": DBSCANClusterer,
         "hierarchical": HierarchicalClusterer,
         "gmm": GMMClusterer,
+        "hybrid-dbscan-kmeans": HybridDBSCANKMeansClusterer,
     }
 
     def __init__(
@@ -61,17 +63,28 @@ class SemanticClusterer:
         min_cluster_size: int = 2,
         max_clusters: int = 20,
         random_state: Optional[int] = 42,
+        # Hybrid algorithm specific parameters
+        target_clusters: Union[int, str] = 30,
+        major_event_threshold: int = 10,
+        dbscan_eps: Optional[float] = None,
+        dbscan_min_samples: Optional[int] = None,
+        kmeans_strategy: str = "remaining_slots",
         **kwargs: Any,
     ):
         """
         Initialize the SemanticClusterer.
 
         Args:
-            method: Clustering algorithm to use ('kmeans', 'dbscan', 'hierarchical', 'gmm')
+            method: Clustering algorithm to use ('kmeans', 'dbscan', 'hierarchical', 'gmm', 'hybrid-dbscan-kmeans')
             n_clusters: Number of clusters or 'auto' for automatic detection
             min_cluster_size: Minimum size for a valid cluster
             max_clusters: Maximum number of clusters for auto-detection
             random_state: Random state for reproducibility
+            target_clusters: Target number of final clusters for hybrid method (default: 30)
+            major_event_threshold: Minimum cluster size to be considered a major event (default: 10)
+            dbscan_eps: DBSCAN epsilon parameter (auto-estimated if not provided)
+            dbscan_min_samples: DBSCAN min_samples parameter (defaults to min_cluster_size)
+            kmeans_strategy: Strategy for K-Means reorganization (default: remaining_slots)
             **kwargs: Additional parameters passed to the clustering algorithm
         """
         if method not in self.SUPPORTED_METHODS:
@@ -85,7 +98,19 @@ class SemanticClusterer:
         self.min_cluster_size = min_cluster_size
         self.max_clusters = max_clusters
         self.random_state = random_state
-        self.kwargs = kwargs
+        
+        # Hybrid algorithm parameters
+        if method == "hybrid-dbscan-kmeans":
+            self.kwargs = {
+                'target_clusters': target_clusters,
+                'major_event_threshold': major_event_threshold,
+                'dbscan_eps': dbscan_eps,
+                'dbscan_min_samples': dbscan_min_samples,
+                'kmeans_strategy': kmeans_strategy,
+                **kwargs
+            }
+        else:
+            self.kwargs = kwargs
 
         # Initialize algorithm
         self.algorithm = self._create_algorithm()

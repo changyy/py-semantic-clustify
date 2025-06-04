@@ -5,7 +5,7 @@ This package provides both CLI and library interfaces for clustering text docume
 based on their semantic similarity using pre-computed vector embeddings.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "changyy"
 __email__ = "changyy.csie@gmail.com"
 
